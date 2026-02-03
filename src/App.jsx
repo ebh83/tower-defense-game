@@ -1,33 +1,42 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 const GRID_SIZE = 16;
-const CELL_SIZE = 44;
+const ROWS = 11;
 const TICK_RATE = 50;
 
+// "Fill screen" sizing (viewport-based, clamped)
+const MIN_CELL = 32;
+const MAX_CELL = 56;
+
 const PATH = [
-  {x: 0, y: 6}, {x: 1, y: 6}, {x: 2, y: 6}, {x: 3, y: 6},
-  {x: 3, y: 5}, {x: 3, y: 4}, {x: 3, y: 3}, {x: 3, y: 2},
-  {x: 4, y: 2}, {x: 5, y: 2}, {x: 6, y: 2}, {x: 7, y: 2},
-  {x: 7, y: 3}, {x: 7, y: 4}, {x: 7, y: 5}, {x: 7, y: 6}, {x: 7, y: 7}, {x: 7, y: 8},
-  {x: 8, y: 8}, {x: 9, y: 8}, {x: 10, y: 8}, {x: 11, y: 8},
-  {x: 11, y: 7}, {x: 11, y: 6}, {x: 11, y: 5}, {x: 11, y: 4},
-  {x: 12, y: 4}, {x: 13, y: 4}, {x: 14, y: 4}, {x: 15, y: 4}
+  { x: 0, y: 6 }, { x: 1, y: 6 }, { x: 2, y: 6 }, { x: 3, y: 6 },
+  { x: 3, y: 5 }, { x: 3, y: 4 }, { x: 3, y: 3 }, { x: 3, y: 2 },
+  { x: 4, y: 2 }, { x: 5, y: 2 }, { x: 6, y: 2 }, { x: 7, y: 2 },
+  { x: 7, y: 3 }, { x: 7, y: 4 }, { x: 7, y: 5 }, { x: 7, y: 6 }, { x: 7, y: 7 }, { x: 7, y: 8 },
+  { x: 8, y: 8 }, { x: 9, y: 8 }, { x: 10, y: 8 }, { x: 11, y: 8 },
+  { x: 11, y: 7 }, { x: 11, y: 6 }, { x: 11, y: 5 }, { x: 11, y: 4 },
+  { x: 12, y: 4 }, { x: 13, y: 4 }, { x: 14, y: 4 }, { x: 15, y: 4 }
 ];
 
 const TOWER_TYPES = {
-  blaster: { name: 'Blaster', cost: 50, damage: 12, range: 2.5, fireRate: 400, color: '#00ff88', icon: '●', description: 'Rapid fire energy bolts',
+  blaster: {
+    name: 'Blaster', cost: 50, damage: 12, range: 2.5, fireRate: 400, color: '#00ff88', icon: '●', description: 'Rapid fire energy bolts',
     upgrades: [{ cost: 60, damageBonus: 8, rangeBonus: 0.3 }, { cost: 120, damageBonus: 15, rangeBonus: 0.5 }, { cost: 240, damageBonus: 30, rangeBonus: 0.7 }]
   },
-  cannon: { name: 'Cannon', cost: 100, damage: 45, range: 2.2, fireRate: 1100, color: '#ff6b00', icon: '■', description: 'Heavy plasma rounds',
+  cannon: {
+    name: 'Cannon', cost: 100, damage: 45, range: 2.2, fireRate: 1100, color: '#ff6b00', icon: '■', description: 'Heavy plasma rounds',
     upgrades: [{ cost: 100, damageBonus: 25, rangeBonus: 0.2 }, { cost: 200, damageBonus: 50, rangeBonus: 0.4 }, { cost: 400, damageBonus: 100, rangeBonus: 0.6 }]
   },
-  frost: { name: 'Frost', cost: 75, damage: 8, range: 2.0, fireRate: 600, color: '#00d4ff', icon: '✦', description: 'Slows enemy movement', slow: 0.4,
+  frost: {
+    name: 'Frost', cost: 75, damage: 8, range: 2.0, fireRate: 600, color: '#00d4ff', icon: '✦', description: 'Slows enemy movement', slow: 0.4,
     upgrades: [{ cost: 75, damageBonus: 5, rangeBonus: 0.3, slowBonus: 0.1 }, { cost: 150, damageBonus: 10, rangeBonus: 0.5, slowBonus: 0.15 }, { cost: 300, damageBonus: 20, rangeBonus: 0.7, slowBonus: 0.2 }]
   },
-  rocket: { name: 'Rocket', cost: 150, damage: 60, range: 3.5, fireRate: 1800, color: '#ff0066', icon: '▲', description: 'Area damage missiles', splash: 1.2,
+  rocket: {
+    name: 'Rocket', cost: 150, damage: 60, range: 3.5, fireRate: 1800, color: '#ff0066', icon: '▲', description: 'Area damage missiles', splash: 1.2,
     upgrades: [{ cost: 150, damageBonus: 30, rangeBonus: 0.4, splashBonus: 0.3 }, { cost: 300, damageBonus: 60, rangeBonus: 0.6, splashBonus: 0.5 }, { cost: 600, damageBonus: 120, rangeBonus: 1, splashBonus: 0.8 }]
   },
-  shock: { name: 'Shock', cost: 200, damage: 30, range: 2.3, fireRate: 500, color: '#ffdd00', icon: '⚡', description: 'Chains to nearby foes', chain: 3,
+  shock: {
+    name: 'Shock', cost: 200, damage: 30, range: 2.3, fireRate: 500, color: '#ffdd00', icon: '⚡', description: 'Chains to nearby foes', chain: 3,
     upgrades: [{ cost: 200, damageBonus: 18, rangeBonus: 0.2, chainBonus: 1 }, { cost: 400, damageBonus: 35, rangeBonus: 0.4, chainBonus: 2 }, { cost: 800, damageBonus: 70, rangeBonus: 0.6, chainBonus: 3 }]
   }
 };
@@ -77,7 +86,30 @@ export default function TowerDefense() {
   const [waveInProgress, setWaveInProgress] = useState(false);
   const [hoveredCell, setHoveredCell] = useState(null);
   const [showAllRanges, setShowAllRanges] = useState(false);
-  
+
+  // viewport-based cell size (fills screen-ish, not fully fluid)
+  const [cellSize, setCellSize] = useState(44);
+
+  useEffect(() => {
+    const update = () => {
+      // leave room for HUD + side panel
+      const usableW = window.innerWidth - 360;  // side panel + padding
+      const usableH = window.innerHeight - 200; // HUD + margins
+
+      const size = Math.floor(Math.min(usableW / GRID_SIZE, usableH / ROWS));
+      setCellSize(Math.max(MIN_CELL, Math.min(MAX_CELL, size)));
+    };
+
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+
+  const boardW = GRID_SIZE * cellSize;
+  const boardH = ROWS * cellSize;
+
+  const projR = Math.max(4, Math.round(cellSize * 0.11)); // projectile radius-ish
+
   const idRef = useRef({ enemy: 0, projectile: 0, effect: 0 });
   const lastFireRef = useRef({});
   const spawnedRef = useRef(false);
@@ -103,10 +135,10 @@ export default function TowerDefense() {
     if (wave >= WAVES.length || spawnedRef.current) return;
     spawnedRef.current = true;
     setWaveInProgress(true);
-    
+
     const waveData = WAVES[wave];
     let totalDelay = 0;
-    
+
     waveData.enemies.forEach(group => {
       const baseEnemy = ENEMY_TYPES[group.type];
       for (let i = 0; i < group.count; i++) {
@@ -132,10 +164,10 @@ export default function TowerDefense() {
   const placeTower = (x, y) => {
     if (!selectedTowerType || isOnPath(x, y)) return;
     if (towers.some(t => t.x === x && t.y === y)) return;
-    
+
     const towerType = TOWER_TYPES[selectedTowerType];
     if (gold < towerType.cost) return;
-    
+
     setGold(g => g - towerType.cost);
     const newTower = { id: Date.now(), x, y, type: selectedTowerType, ...towerType, level: 0 };
     setTowers(prev => [...prev, newTower]);
@@ -148,7 +180,7 @@ export default function TowerDefense() {
     if (tower.level >= 3) return;
     const upgrade = towerType.upgrades[tower.level];
     if (gold < upgrade.cost) return;
-    
+
     setGold(g => g - upgrade.cost);
     setTowers(prev => prev.map(t => {
       if (t.id !== tower.id) return t;
@@ -158,7 +190,11 @@ export default function TowerDefense() {
       if (t.chain && upgrade.chainBonus) u.chain = t.chain + upgrade.chainBonus;
       return u;
     }));
-    setSelectedTower(prev => prev?.id === tower.id ? { ...prev, level: prev.level + 1, damage: prev.damage + upgrade.damageBonus, range: prev.range + upgrade.rangeBonus } : prev);
+    setSelectedTower(prev =>
+      prev?.id === tower.id
+        ? { ...prev, level: prev.level + 1, damage: prev.damage + upgrade.damageBonus, range: prev.range + upgrade.rangeBonus }
+        : prev
+    );
   };
 
   const sellTower = (tower) => {
@@ -177,7 +213,7 @@ export default function TowerDefense() {
 
     const loop = setInterval(() => {
       const now = Date.now();
-      
+
       setEnemies(prev => {
         let escaped = 0;
         const updated = prev.map(e => {
@@ -187,12 +223,12 @@ export default function TowerDefense() {
           if (progress >= 1) { progress = 0; pathIndex++; }
           return { ...e, pathIndex, progress, slowTimer, slowAmount };
         });
-        
+
         const alive = updated.filter(e => {
           if (e.pathIndex >= PATH.length) { escaped++; return false; }
           return e.health > 0;
         });
-        
+
         if (escaped > 0) setLives(l => { const n = l - escaped; if (n <= 0) setGameState('defeat'); return Math.max(0, n); });
         return alive;
       });
@@ -203,9 +239,9 @@ export default function TowerDefense() {
           currentTowers.forEach(tower => {
             const lastFire = lastFireRef.current[tower.id] || 0;
             if (now - lastFire < tower.fireRate) return;
-            
+
             let target = null, targetDist = Infinity, targetPos = null;
-            
+
             currentEnemies.forEach(enemy => {
               if (enemy.pathIndex >= PATH.length || enemy.health <= 0) return;
               const cur = PATH[enemy.pathIndex], nxt = PATH[Math.min(enemy.pathIndex + 1, PATH.length - 1)];
@@ -213,11 +249,12 @@ export default function TowerDefense() {
               const dist = Math.sqrt((tower.x + 0.5 - pos.x) ** 2 + (tower.y + 0.5 - pos.y) ** 2);
               if (dist <= tower.range && dist < targetDist) { targetDist = dist; target = enemy; targetPos = pos; }
             });
-            
+
             if (target && targetPos) {
               lastFireRef.current[tower.id] = now;
               setProjectiles(p => [...p, {
-                id: idRef.current.projectile++, x: tower.x + 0.5, y: tower.y + 0.5,
+                id: idRef.current.projectile++,
+                x: tower.x + 0.5, y: tower.y + 0.5,
                 targetX: targetPos.x, targetY: targetPos.y, targetId: target.id,
                 damage: tower.damage, color: tower.color, type: tower.type,
                 slow: tower.slow, splash: tower.splash, chain: tower.chain, speed: 0.35
@@ -235,11 +272,11 @@ export default function TowerDefense() {
         prev.forEach(proj => {
           const dx = proj.targetX - proj.x, dy = proj.targetY - proj.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
-          
+
           if (dist < proj.speed) {
             setEnemies(enemies => {
               let hitIds = [];
-              
+
               if (proj.splash) {
                 enemies.forEach(e => {
                   const cur = PATH[e.pathIndex], nxt = PATH[Math.min(e.pathIndex + 1, PATH.length - 1)];
@@ -268,7 +305,7 @@ export default function TowerDefense() {
               } else {
                 hitIds = [proj.targetId];
               }
-              
+
               return enemies.map(e => {
                 if (!hitIds.includes(e.id)) return e;
                 const armor = e.armor || 0, dmg = Math.max(1, proj.damage - armor), newHealth = e.health - dmg;
@@ -320,19 +357,19 @@ export default function TowerDefense() {
         <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(0,255,200,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,255,200,0.03) 1px, transparent 1px)', backgroundSize: '50px 50px' }} />
         <div style={{ position: 'absolute', width: 500, height: 500, background: 'radial-gradient(circle, rgba(0,255,200,0.1) 0%, transparent 60%)', top: '10%', left: '5%', filter: 'blur(80px)' }} />
         <div style={{ position: 'absolute', width: 400, height: 400, background: 'radial-gradient(circle, rgba(255,100,150,0.08) 0%, transparent 60%)', bottom: '10%', right: '10%', filter: 'blur(60px)' }} />
-        
+
         <div style={{ zIndex: 1, textAlign: 'center' }}>
           <div style={{ fontSize: '4.5rem', fontWeight: 900, color: '#fff', marginBottom: 8 }}>
             <span style={{ color: '#00ffc8' }}>NEON</span> SIEGE
           </div>
           <div style={{ fontSize: '1rem', color: '#5a7a9a', letterSpacing: '0.5em', textTransform: 'uppercase', marginBottom: 50 }}>Tower Defense</div>
-          
+
           <button onClick={startGame} style={{ padding: '20px 80px', fontSize: '1.2rem', fontWeight: 700, background: 'linear-gradient(135deg, #00ffc8, #00c9a0)', border: 'none', borderRadius: 50, color: '#0a0a1a', cursor: 'pointer', boxShadow: '0 0 50px rgba(0,255,200,0.3)', transition: 'all 0.3s' }}
             onMouseEnter={e => { e.target.style.transform = 'scale(1.05)'; e.target.style.boxShadow = '0 0 70px rgba(0,255,200,0.5)'; }}
             onMouseLeave={e => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = '0 0 50px rgba(0,255,200,0.3)'; }}>
             START GAME
           </button>
-          
+
           <div style={{ marginTop: 60, display: 'flex', gap: 40, color: '#4a6a8a', fontSize: '0.9rem' }}>
             <div>● Build Towers</div><div>■ Upgrade Power</div><div>⚡ Stop the Horde</div>
           </div>
@@ -359,10 +396,23 @@ export default function TowerDefense() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #0a0a1a 0%, #0d1520 100%)', fontFamily: 'system-ui', color: '#fff', padding: 16 }}>
+      {/* Path animation keyframes */}
+      <style>{`
+        @keyframes pathFlow {
+          0% { background-position: 0% 0%; }
+          100% { background-position: 200% 200%; }
+        }
+      `}</style>
+
       {/* HUD */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, padding: '14px 24px', background: 'rgba(255,255,255,0.02)', borderRadius: 16, border: '1px solid rgba(255,255,255,0.05)' }}>
         <div style={{ display: 'flex', gap: 40 }}>
-          {[{ label: 'GOLD', value: gold, color: '#ffd700', icon: '◆' }, { label: 'LIVES', value: lives, color: '#ff6080', icon: '♥' }, { label: 'WAVE', value: `${wave + 1}/${WAVES.length}`, color: '#00ffc8', icon: '◎' }, { label: 'SCORE', value: score.toLocaleString(), color: '#60a0ff', icon: '★' }].map(s => (
+          {[
+            { label: 'GOLD', value: gold, color: '#ffd700', icon: '◆' },
+            { label: 'LIVES', value: lives, color: '#ff6080', icon: '♥' },
+            { label: 'WAVE', value: `${wave + 1}/${WAVES.length}`, color: '#00ffc8', icon: '◎' },
+            { label: 'SCORE', value: score.toLocaleString(), color: '#60a0ff', icon: '★' }
+          ].map(s => (
             <div key={s.label}>
               <div style={{ fontSize: '0.7rem', color: '#556', letterSpacing: '0.1em' }}>{s.label}</div>
               <div style={{ fontSize: '1.5rem', fontWeight: 700, color: s.color }}>{s.icon} {s.value}</div>
@@ -382,42 +432,151 @@ export default function TowerDefense() {
 
       <div style={{ display: 'flex', gap: 16 }}>
         {/* Game Board */}
-        <div style={{ position: 'relative', width: GRID_SIZE * CELL_SIZE, height: 11 * CELL_SIZE, background: '#0c1018', borderRadius: 16, border: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px)', backgroundSize: `${CELL_SIZE}px ${CELL_SIZE}px` }} />
-          
-          {/* Path */}
-          {PATH.map((p, i) => <div key={`path-${i}`} style={{ position: 'absolute', left: p.x * CELL_SIZE, top: p.y * CELL_SIZE, width: CELL_SIZE, height: CELL_SIZE, background: 'rgba(100,150,200,0.08)', borderRadius: 4 }} />)}
-          
+        <div style={{ position: 'relative', width: boardW, height: boardH, background: '#0c1018', borderRadius: 16, border: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundImage:
+              'linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)',
+            backgroundSize: `${cellSize}px ${cellSize}px`
+          }} />
+
+          {/* Path (more visible) */}
+          {PATH.map((p, i) => (
+            <div
+              key={`path-${i}`}
+              style={{
+                position: 'absolute',
+                left: p.x * cellSize,
+                top: p.y * cellSize,
+                width: cellSize,
+                height: cellSize,
+                background: 'linear-gradient(135deg, rgba(0,255,200,0.35), rgba(0,180,255,0.25))',
+                backgroundSize: '200% 200%',
+                animation: 'pathFlow 6s linear infinite',
+                boxShadow: 'inset 0 0 0 1px rgba(0,255,200,0.55), 0 0 14px rgba(0,255,200,0.35)',
+                borderRadius: 6,
+                zIndex: 1
+              }}
+            />
+          ))}
+
           {/* Clickable cells */}
-          {[...Array(11)].map((_, y) => [...Array(GRID_SIZE)].map((_, x) => {
+          {[...Array(ROWS)].map((_, y) => [...Array(GRID_SIZE)].map((_, x) => {
             const onPath = isOnPath(x, y), hasTower = towers.some(t => t.x === x && t.y === y);
             const isHovered = hoveredCell?.x === x && hoveredCell?.y === y;
             const canPlace = selectedTowerType && !onPath && !hasTower && gold >= TOWER_TYPES[selectedTowerType].cost;
             return (
-              <div key={`c-${x}-${y}`} onClick={() => {
-                if (selectedTowerType && !onPath && !hasTower) placeTower(x, y);
-                else if (hasTower) { const t = towers.find(t => t.x === x && t.y === y); setSelectedTower(selectedTower?.id === t.id ? null : t); setSelectedTowerType(null); }
-                else setSelectedTower(null);
-              }} onMouseEnter={() => setHoveredCell({ x, y })} onMouseLeave={() => setHoveredCell(null)}
-                style={{ position: 'absolute', left: x * CELL_SIZE, top: y * CELL_SIZE, width: CELL_SIZE, height: CELL_SIZE, background: isHovered && canPlace ? 'rgba(0,255,200,0.15)' : isHovered && selectedTowerType && !canPlace ? 'rgba(255,80,80,0.15)' : 'transparent', cursor: (!onPath && (selectedTowerType || hasTower)) ? 'pointer' : 'default', zIndex: 5 }} />
+              <div
+                key={`c-${x}-${y}`}
+                onClick={() => {
+                  if (selectedTowerType && !onPath && !hasTower) placeTower(x, y);
+                  else if (hasTower) {
+                    const t = towers.find(t => t.x === x && t.y === y);
+                    setSelectedTower(selectedTower?.id === t.id ? null : t);
+                    setSelectedTowerType(null);
+                  } else setSelectedTower(null);
+                }}
+                onMouseEnter={() => setHoveredCell({ x, y })}
+                onMouseLeave={() => setHoveredCell(null)}
+                style={{
+                  position: 'absolute',
+                  left: x * cellSize,
+                  top: y * cellSize,
+                  width: cellSize,
+                  height: cellSize,
+                  background:
+                    isHovered && canPlace ? 'rgba(0,255,200,0.15)'
+                      : isHovered && selectedTowerType && !canPlace ? 'rgba(255,80,80,0.15)'
+                        : 'transparent',
+                  cursor: (!onPath && (selectedTowerType || hasTower)) ? 'pointer' : 'default',
+                  zIndex: 5
+                }}
+              />
             );
           }))}
 
           {/* Range circles */}
           {towers.map(tower => (showAllRanges || selectedTower?.id === tower.id) && (
-            <div key={`r-${tower.id}`} style={{ position: 'absolute', left: (tower.x + 0.5) * CELL_SIZE - tower.range * CELL_SIZE, top: (tower.y + 0.5) * CELL_SIZE - tower.range * CELL_SIZE, width: tower.range * 2 * CELL_SIZE, height: tower.range * 2 * CELL_SIZE, border: `2px solid ${tower.color}`, borderRadius: '50%', opacity: selectedTower?.id === tower.id ? 0.7 : 0.3, pointerEvents: 'none', zIndex: 2 }} />
+            <div
+              key={`r-${tower.id}`}
+              style={{
+                position: 'absolute',
+                left: (tower.x + 0.5) * cellSize - tower.range * cellSize,
+                top: (tower.y + 0.5) * cellSize - tower.range * cellSize,
+                width: tower.range * 2 * cellSize,
+                height: tower.range * 2 * cellSize,
+                border: `2px solid ${tower.color}`,
+                borderRadius: '50%',
+                opacity: selectedTower?.id === tower.id ? 0.7 : 0.3,
+                pointerEvents: 'none',
+                zIndex: 2
+              }}
+            />
           ))}
-          
+
           {/* Placement preview range */}
           {selectedTowerType && hoveredCell && !isOnPath(hoveredCell.x, hoveredCell.y) && !towers.some(t => t.x === hoveredCell.x && t.y === hoveredCell.y) && (
-            <div style={{ position: 'absolute', left: (hoveredCell.x + 0.5) * CELL_SIZE - TOWER_TYPES[selectedTowerType].range * CELL_SIZE, top: (hoveredCell.y + 0.5) * CELL_SIZE - TOWER_TYPES[selectedTowerType].range * CELL_SIZE, width: TOWER_TYPES[selectedTowerType].range * 2 * CELL_SIZE, height: TOWER_TYPES[selectedTowerType].range * 2 * CELL_SIZE, border: `2px dashed ${TOWER_TYPES[selectedTowerType].color}`, borderRadius: '50%', opacity: 0.6, pointerEvents: 'none', zIndex: 10 }} />
+            <div
+              style={{
+                position: 'absolute',
+                left: (hoveredCell.x + 0.5) * cellSize - TOWER_TYPES[selectedTowerType].range * cellSize,
+                top: (hoveredCell.y + 0.5) * cellSize - TOWER_TYPES[selectedTowerType].range * cellSize,
+                width: TOWER_TYPES[selectedTowerType].range * 2 * cellSize,
+                height: TOWER_TYPES[selectedTowerType].range * 2 * cellSize,
+                border: `2px dashed ${TOWER_TYPES[selectedTowerType].color}`,
+                borderRadius: '50%',
+                opacity: 0.6,
+                pointerEvents: 'none',
+                zIndex: 10
+              }}
+            />
           )}
 
           {/* Towers */}
           {towers.map(tower => (
-            <div key={tower.id} onClick={() => setSelectedTower(selectedTower?.id === tower.id ? null : tower)} style={{ position: 'absolute', left: tower.x * CELL_SIZE + 4, top: tower.y * CELL_SIZE + 4, width: CELL_SIZE - 8, height: CELL_SIZE - 8, background: `radial-gradient(circle at 30% 30%, ${tower.color}80, ${tower.color}40)`, border: `2px solid ${tower.color}`, borderRadius: tower.type === 'cannon' ? 6 : tower.type === 'rocket' ? '4px 4px 50% 50%' : '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem', color: tower.color, boxShadow: `0 0 ${15 + tower.level * 8}px ${tower.color}60`, zIndex: 10, cursor: 'pointer' }}>
+            <div
+              key={tower.id}
+              onClick={() => setSelectedTower(selectedTower?.id === tower.id ? null : tower)}
+              style={{
+                position: 'absolute',
+                left: tower.x * cellSize + 4,
+                top: tower.y * cellSize + 4,
+                width: cellSize - 8,
+                height: cellSize - 8,
+                background: `radial-gradient(circle at 30% 30%, ${tower.color}80, ${tower.color}40)`,
+                border: `2px solid ${tower.color}`,
+                borderRadius: tower.type === 'cannon' ? 6 : tower.type === 'rocket' ? '4px 4px 50% 50%' : '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: `${Math.max(18, Math.round(cellSize * 0.35))}px`,
+                color: tower.color,
+                boxShadow: `0 0 ${15 + tower.level * 8}px ${tower.color}60`,
+                zIndex: 10,
+                cursor: 'pointer'
+              }}
+            >
               {tower.icon}
-              {tower.level > 0 && <div style={{ position: 'absolute', top: -5, right: -5, width: 16, height: 16, background: '#ffd700', borderRadius: '50%', fontSize: '0.6rem', fontWeight: 800, color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{tower.level}</div>}
+              {tower.level > 0 && (
+                <div style={{
+                  position: 'absolute',
+                  top: -5,
+                  right: -5,
+                  width: 16,
+                  height: 16,
+                  background: '#ffd700',
+                  borderRadius: '50%',
+                  fontSize: '0.6rem',
+                  fontWeight: 800,
+                  color: '#000',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  {tower.level}
+                </div>
+              )}
             </div>
           ))}
 
@@ -425,25 +584,104 @@ export default function TowerDefense() {
           {enemies.map(enemy => {
             if (enemy.pathIndex >= PATH.length) return null;
             const cur = PATH[enemy.pathIndex], nxt = PATH[Math.min(enemy.pathIndex + 1, PATH.length - 1)];
-            const ex = (cur.x + (nxt.x - cur.x) * enemy.progress) * CELL_SIZE, ey = (cur.y + (nxt.y - cur.y) * enemy.progress) * CELL_SIZE;
+            const ex = (cur.x + (nxt.x - cur.x) * enemy.progress) * cellSize;
+            const ey = (cur.y + (nxt.y - cur.y) * enemy.progress) * cellSize;
             return (
-              <div key={enemy.id} style={{ position: 'absolute', left: ex + CELL_SIZE * (0.5 - enemy.size / 2), top: ey + CELL_SIZE * (0.5 - enemy.size / 2), width: CELL_SIZE * enemy.size, height: CELL_SIZE * enemy.size, zIndex: 15 }}>
-                <div style={{ width: '100%', height: '100%', background: `radial-gradient(circle at 35% 35%, ${enemy.color}, ${enemy.color}88)`, borderRadius: enemy.type === 'tank' ? '25%' : enemy.type === 'brute' ? '30%' : '50%', boxShadow: `0 0 12px ${enemy.color}80`, border: enemy.slowAmount < 1 ? '2px solid #00d4ff' : 'none', boxSizing: 'border-box' }} />
+              <div
+                key={enemy.id}
+                style={{
+                  position: 'absolute',
+                  left: ex + cellSize * (0.5 - enemy.size / 2),
+                  top: ey + cellSize * (0.5 - enemy.size / 2),
+                  width: cellSize * enemy.size,
+                  height: cellSize * enemy.size,
+                  zIndex: 15
+                }}
+              >
+                <div
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    background: `radial-gradient(circle at 35% 35%, ${enemy.color}, ${enemy.color}88)`,
+                    borderRadius: enemy.type === 'tank' ? '25%' : enemy.type === 'brute' ? '30%' : '50%',
+                    boxShadow: `0 0 16px ${enemy.color}, 0 0 4px #000`,
+                    border: enemy.slowAmount < 1 ? '2px solid #00d4ff' : 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
                 <div style={{ position: 'absolute', top: -6, left: '10%', width: '80%', height: 3, background: '#222', borderRadius: 2 }}>
-                  <div style={{ width: `${(enemy.health / enemy.maxHealth) * 100}%`, height: '100%', background: enemy.health > enemy.maxHealth * 0.6 ? '#00ff88' : enemy.health > enemy.maxHealth * 0.3 ? '#ffaa00' : '#ff4444', borderRadius: 2 }} />
+                  <div style={{
+                    width: `${(enemy.health / enemy.maxHealth) * 100}%`,
+                    height: '100%',
+                    background: enemy.health > enemy.maxHealth * 0.6 ? '#00ff88' : enemy.health > enemy.maxHealth * 0.3 ? '#ffaa00' : '#ff4444',
+                    borderRadius: 2
+                  }} />
                 </div>
               </div>
             );
           })}
 
           {/* Projectiles */}
-          {projectiles.map(p => <div key={p.id} style={{ position: 'absolute', left: p.x * CELL_SIZE - 5, top: p.y * CELL_SIZE - 5, width: 10, height: 10, background: p.color, borderRadius: '50%', boxShadow: `0 0 12px ${p.color}`, zIndex: 20, pointerEvents: 'none' }} />)}
+          {projectiles.map(p => (
+            <div
+              key={p.id}
+              style={{
+                position: 'absolute',
+                left: p.x * cellSize - projR,
+                top: p.y * cellSize - projR,
+                width: projR * 2,
+                height: projR * 2,
+                background: p.color,
+                borderRadius: '50%',
+                boxShadow: `0 0 12px ${p.color}`,
+                zIndex: 20,
+                pointerEvents: 'none'
+              }}
+            />
+          ))}
 
           {/* Effects */}
           {effects.map(e => {
-            if (e.type === 'explosion') return <div key={e.id} style={{ position: 'absolute', left: e.x * CELL_SIZE - e.radius * CELL_SIZE, top: e.y * CELL_SIZE - e.radius * CELL_SIZE, width: e.radius * 2 * CELL_SIZE, height: e.radius * 2 * CELL_SIZE, background: `radial-gradient(circle, ${e.color}60, transparent 70%)`, borderRadius: '50%', opacity: e.timer / 300, zIndex: 25, pointerEvents: 'none' }} />;
-            if (e.type === 'lightning') return <svg key={e.id} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 25, pointerEvents: 'none', opacity: e.timer / 180 }}><line x1={e.x1 * CELL_SIZE} y1={e.y1 * CELL_SIZE} x2={e.x2 * CELL_SIZE} y2={e.y2 * CELL_SIZE} stroke={e.color} strokeWidth="3" style={{ filter: `drop-shadow(0 0 6px ${e.color})` }} /></svg>;
-            if (e.type === 'death') return <div key={e.id} style={{ position: 'absolute', left: e.x * CELL_SIZE - 15, top: e.y * CELL_SIZE - 15, width: 30, height: 30, background: `radial-gradient(circle, ${e.color}, transparent)`, borderRadius: '50%', opacity: e.timer / 350, transform: `scale(${1.5 - e.timer / 700})`, zIndex: 25, pointerEvents: 'none' }} />;
+            if (e.type === 'explosion') return (
+              <div
+                key={e.id}
+                style={{
+                  position: 'absolute',
+                  left: e.x * cellSize - e.radius * cellSize,
+                  top: e.y * cellSize - e.radius * cellSize,
+                  width: e.radius * 2 * cellSize,
+                  height: e.radius * 2 * cellSize,
+                  background: `radial-gradient(circle, ${e.color}60, transparent 70%)`,
+                  borderRadius: '50%',
+                  opacity: e.timer / 300,
+                  zIndex: 25,
+                  pointerEvents: 'none'
+                }}
+              />
+            );
+            if (e.type === 'lightning') return (
+              <svg key={e.id} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 25, pointerEvents: 'none', opacity: e.timer / 180 }}>
+                <line x1={e.x1 * cellSize} y1={e.y1 * cellSize} x2={e.x2 * cellSize} y2={e.y2 * cellSize} stroke={e.color} strokeWidth="3" style={{ filter: `drop-shadow(0 0 6px ${e.color})` }} />
+              </svg>
+            );
+            if (e.type === 'death') return (
+              <div
+                key={e.id}
+                style={{
+                  position: 'absolute',
+                  left: e.x * cellSize - 15,
+                  top: e.y * cellSize - 15,
+                  width: 30,
+                  height: 30,
+                  background: `radial-gradient(circle, ${e.color}, transparent)`,
+                  borderRadius: '50%',
+                  opacity: e.timer / 350,
+                  transform: `scale(${1.5 - e.timer / 700})`,
+                  zIndex: 25,
+                  pointerEvents: 'none'
+                }}
+              />
+            );
             return null;
           })}
         </div>
