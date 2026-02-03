@@ -397,12 +397,31 @@ export default function TowerDefense() {
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #0a0a1a 0%, #0d1520 100%)', fontFamily: 'system-ui', color: '#fff', padding: 16 }}>
       {/* Path animation keyframes */}
+
       <style>{`
-        @keyframes pathFlow {
-          0% { background-position: 0% 0%; }
-          100% { background-position: 200% 200%; }
-        }
-      `}</style>
+  @keyframes pathFlow {
+    0% { background-position: 0% 0%; }
+    100% { background-position: 200% 200%; }
+  }
+
+  @keyframes floatUp {
+    0% { transform: translate(-50%, 0) scale(1); opacity: 0; }
+    15% { opacity: 1; }
+    100% { transform: translate(-50%, -22px) scale(1.05); opacity: 0; }
+  }
+
+  @keyframes pop {
+    0% { transform: translate(-50%, -50%) scale(0.6); opacity: 0; }
+    20% { opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(1.25); opacity: 0; }
+  }
+
+  @keyframes hitFlash {
+    0% { opacity: 0.0; }
+    25% { opacity: 0.9; }
+    100% { opacity: 0.0; }
+  }
+`}</style>
 
       {/* HUD */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, padding: '14px 24px', background: 'rgba(255,255,255,0.02)', borderRadius: 16, border: '1px solid rgba(255,255,255,0.05)' }}>
