@@ -101,6 +101,17 @@ const doShake = useCallback((power = 6) => {
   const ang = Math.random() * Math.PI * 2;
   setShake({ x: Math.cos(ang) * power, y: Math.sin(ang) * power, t: 90 });
 }, []);
+useEffect(() => {
+  if (shake.t <= 0) return;
+  const id = setInterval(() => {
+    setShake(s => {
+      const nt = s.t - 16;
+      if (nt <= 0) return { x: 0, y: 0, t: 0 };
+      return { x: s.x * 0.75, y: s.y * 0.75, t: nt };
+    });
+  }, 16);
+  return () => clearInterval(id);
+}, [shake.t]);
 
   useEffect(() => {
     const update = () => {
@@ -463,7 +474,8 @@ const doShake = useCallback((power = 6) => {
 
       <div style={{ display: 'flex', gap: 16 }}>
         {/* Game Board */}
-        <div style={{ position: 'relative', width: boardW, height: boardH, background: '#0c1018', borderRadius: 16, border: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+        <div style={{ position: 'relative', width: boardW, height: boardH, background: '#0c1018', borderRadius: 16, border: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden',     transform: `translate(${shake.x}px, ${shake.y}px)`,
+    transition: shake.t > 0 ? 'transform 0ms' : 'transform 120ms ease' }}>
           <div style={{
             position: 'absolute',
             inset: 0,
