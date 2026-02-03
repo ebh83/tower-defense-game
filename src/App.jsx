@@ -89,6 +89,18 @@ export default function TowerDefense() {
 
   // viewport-based cell size (fills screen-ish, not fully fluid)
   const [cellSize, setCellSize] = useState(44);
+const [shake, setShake] = useState({ x: 0, y: 0, t: 0 });
+const shakeRef = useRef(0);
+
+const doShake = useCallback((power = 6) => {
+  // throttle so it doesn't go insane
+  const now = Date.now();
+  if (now - shakeRef.current < 60) return;
+  shakeRef.current = now;
+
+  const ang = Math.random() * Math.PI * 2;
+  setShake({ x: Math.cos(ang) * power, y: Math.sin(ang) * power, t: 90 });
+}, []);
 
   useEffect(() => {
     const update = () => {
